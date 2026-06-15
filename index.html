@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard สถานที่ตั้งและพื้นที่ มทร.พระนคร</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"/>
+  <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet-src.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg-page: #F4F6FA; --bg-card: #FFFFFF; --bg-secondary: #F1F3F8;
+      --color-primary: #185FA5; --color-primary-light: #E6F1FB;
+      --color-teal: #0F6E56; --color-teal-light: #E1F5EE;
+      --color-amber: #854F0B; --color-amber-light: #FAEEDA;
+      --color-coral: #D85A30; --color-purple: #7F77DD;
+      --color-text: #1a1a2e; --color-text-secondary: #6B7280;
+      --color-border: rgba(0,0,0,0.08); --color-border-strong: rgba(0,0,0,0.14);
+      --radius-md: 10px; --radius-lg: 14px;
+      --shadow-sm: 0 1px 3px rgba(0,0,0,0.06); --shadow-md: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-page: #0f1117; --bg-card: #1a1d27; --bg-secondary: #22263a;
+        --color-primary: #60A5E8; --color-primary-light: #0C2240;
+        --color-teal: #34C99A; --color-teal-light: #05281E;
+        --color-amber: #EDAB54; --color-amber-light: #2B1A04;
+        --color-text: #E8ECF4; --color-text-secondary: #9399A8;
+        --color-border: rgba(255,255,255,0.08); --color-border-strong: rgba(255,255,255,0.14);
+      }
+    }
+    body { font-family: 'Sarabun', sans-serif; background: var(--bg-page); color: var(--color-text); min-height: 100vh; }
+    .topbar { background: var(--bg-card); border-bottom: 1px solid var(--color-border); box-shadow: var(--shadow-sm); position: sticky; top: 0; z-index: 1000; }
+    .topbar-inner { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; height: 58px; display: flex; align-items: center; justify-content: space-between; }
+    .topbar-brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15px; color: var(--color-text); }
+    .topbar-logo { width: 32px; height: 32px; background: var(--color-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
+    .topbar-date { font-size: 12px; color: var(--color-text-secondary); }
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem 3rem; }
+    .page-header { padding: 2rem 0 1.5rem; }
+    .badge-org { display: inline-flex; align-items: center; gap: 6px; background: var(--color-primary-light); color: var(--color-primary); font-size: 12px; font-weight: 500; padding: 4px 12px; border-radius: 20px; margin-bottom: 10px; }
+    .page-header h1 { font-size: 22px; font-weight: 600; margin-bottom: 4px; color: var(--color-text); }
+    .page-header p { font-size: 13px; color: var(--color-text-secondary); }
+    .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin-bottom: 1.5rem; }
+    @media (max-width: 900px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 560px) { .kpi-grid { grid-template-columns: 1fr 1fr; } }
+    .kpi-card { background: var(--bg-card); border-radius: var(--radius-lg); padding: 1.1rem 1.25rem; border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); position: relative; overflow: hidden; transition: box-shadow 0.2s, transform 0.2s; }
+    .kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+    .kpi-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; }
+    .kpi-card.blue::before { background: linear-gradient(90deg,#185FA5,#60A5E8); }
+    .kpi-card.teal::before { background: linear-gradient(90deg,#0F6E56,#34C99A); }
+    .kpi-card.amber::before { background: linear-gradient(90deg,#854F0B,#EDAB54); }
+    .kpi-card.purple::before { background: linear-gradient(90deg,#534AB7,#9F99EC); }
+    .kpi-card.coral::before { background: linear-gradient(90deg,#993C1D,#D85A30); }
+    .kpi-icon { width: 36px; height: 36px; border-radius: 9px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-bottom: 10px; }
+    .kpi-card.blue .kpi-icon { background: var(--color-primary-light); color: var(--color-primary); }
+    .kpi-card.teal .kpi-icon { background: var(--color-teal-light); color: var(--color-teal); }
+    .kpi-card.amber .kpi-icon { background: var(--color-amber-light); color: var(--color-amber); }
+    .kpi-card.purple .kpi-icon { background: #EEEDFE; color: #534AB7; }
+    .kpi-card.coral .kpi-icon { background: #FAECE7; color: #993C1D; }
+    .kpi-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; font-weight: 500; }
+    .kpi-value { font-size: 30px; font-weight: 600; line-height: 1; margin-bottom: 4px; }
+    .kpi-card.blue .kpi-value { color: var(--color-primary); }
+    .kpi-card.teal .kpi-value { color: var(--color-teal); }
+    .kpi-card.amber .kpi-value { color: var(--color-amber); }
+    .kpi-card.purple .kpi-value { color: #534AB7; }
+    .kpi-card.coral .kpi-value { color: var(--color-coral); }
+    .kpi-sub { font-size: 11px; color: var(--color-text-secondary); }
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 1.5rem; }
+    @media (max-width: 900px) { .charts-grid { grid-template-columns: 1fr; } }
+    .chart-card { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); padding: 1.25rem 1.5rem; }
+    .chart-title { font-size: 14px; font-weight: 600; color: var(--color-text); margin-bottom: 2px; }
+    .chart-sub { font-size: 12px; color: var(--color-text-secondary); margin-bottom: 1rem; }
+    .chart-wrap { position: relative; height: 200px; }
+    .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; font-size: 12px; color: var(--color-text-secondary); }
+    .legend span { display: flex; align-items: center; gap: 5px; }
+    .ldot { width: 10px; height: 10px; border-radius: 3px; flex-shrink: 0; }
+    .map-card { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); overflow: hidden; margin-bottom: 1.5rem; }
+    .map-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--color-border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .map-title { font-size: 14px; font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 8px; }
+    .map-legend { display: flex; gap: 16px; font-size: 12px; color: var(--color-text-secondary); }
+    .map-legend span { display: flex; align-items: center; gap: 6px; }
+    .ml-dot { width: 11px; height: 11px; border-radius: 50%; flex-shrink: 0; }
+    #leafletMap { height: 400px; width: 100%; }
+    .table-card { background: var(--bg-card); border-radius: var(--radius-lg); border: 1px solid var(--color-border); box-shadow: var(--shadow-sm); overflow: hidden; }
+    .table-header { padding: 1rem 1.5rem; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--color-border); }
+    .table-title { font-size: 14px; font-weight: 600; color: var(--color-text); display: flex; align-items: center; gap: 8px; }
+    .search-wrap { position: relative; }
+    .search-wrap input { font-family: 'Sarabun', sans-serif; font-size: 13px; padding: 7px 12px 7px 32px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-md); background: var(--bg-secondary); color: var(--color-text); width: 200px; outline: none; transition: border-color 0.2s, box-shadow 0.2s; }
+    .search-wrap input:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(24,95,165,0.12); }
+    .search-icon { position: absolute; left: 9px; top: 50%; transform: translateY(-50%); font-size: 15px; color: var(--color-text-secondary); pointer-events: none; }
+    .filter-row { padding: 10px 1.5rem; display: flex; gap: 6px; flex-wrap: wrap; border-bottom: 1px solid var(--color-border); background: var(--bg-secondary); }
+    .filter-btn { font-family: 'Sarabun', sans-serif; font-size: 12px; padding: 5px 12px; border: 1px solid var(--color-border-strong); border-radius: 20px; background: var(--bg-card); color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s; }
+    .filter-btn:hover { border-color: var(--color-primary); color: var(--color-primary); }
+    .filter-btn.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    thead th { padding: 10px 14px; text-align: left; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-secondary); background: var(--bg-secondary); border-bottom: 1px solid var(--color-border); cursor: pointer; user-select: none; white-space: nowrap; }
+    thead th:hover { color: var(--color-text); }
+    thead th.active { color: var(--color-primary); }
+    .sort-icon { margin-left: 4px; opacity: 0.4; }
+    thead th.active .sort-icon { opacity: 1; }
+    tbody tr { border-bottom: 1px solid var(--color-border); transition: background 0.1s; }
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: var(--bg-secondary); }
+    tbody td { padding: 11px 14px; vertical-align: middle; }
+    .badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 20px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+    .badge-campus { background: var(--color-primary-light); color: var(--color-primary); }
+    .badge-land { background: var(--color-amber-light); color: var(--color-amber); }
+    .mono { font-family: 'Courier New', monospace; font-size: 11px; color: var(--color-text-secondary); }
+    .table-footer { padding: 10px 1.5rem; font-size: 12px; color: var(--color-text-secondary); border-top: 1px solid var(--color-border); background: var(--bg-secondary); display: flex; justify-content: space-between; align-items: center; }
+    .page-footer { text-align: center; padding: 2rem 0 1rem; font-size: 12px; color: var(--color-text-secondary); }
+    .leaflet-popup-content-wrapper { border-radius: 10px !important; box-shadow: 0 2px 10px rgba(0,0,0,.15) !important; }
+    .popup-name { font-size: 13px; font-weight: 600; color: #1a1a2e; margin-bottom: 6px; }
+    .popup-row { display: flex; justify-content: space-between; gap: 16px; font-size: 11px; margin-bottom: 3px; }
+    .popup-lbl { color: #6B7280; }
+    .popup-val { font-weight: 500; color: #1a1a2e; }
+    .popup-link { display: block; margin-top: 8px; text-align: center; font-size: 11px; color: #185FA5; text-decoration: none; padding: 5px; background: #E6F1FB; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-brand">
+      <div class="topbar-logo"><i class="ti ti-building-university"></i></div>
+      มทร.พระนคร · ระบบข้อมูลสถานที่ตั้ง
+    </div>
+    <div class="topbar-date" id="currentDate"></div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="page-header">
+    <div class="badge-org"><i class="ti ti-map-pin"></i> กองนโยบายและแผน · ds_0124</div>
+    <h1>Dashboard สถานที่ตั้งและพื้นที่ มทร.พระนคร</h1>
+    <p>มหาวิทยาลัยเทคโนโลยีราชมงคลพระนคร · ข้อมูล ณ วันที่ 14 พฤศจิกายน 2568</p>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi-card blue">
+      <div class="kpi-icon"><i class="ti ti-map-2"></i></div>
+      <div class="kpi-label">สถานที่ทั้งหมด</div>
+      <div class="kpi-value">8</div>
+      <div class="kpi-sub">ศูนย์และที่ดิน</div>
+    </div>
+    <div class="kpi-card teal">
+      <div class="kpi-icon"><i class="ti ti-school"></i></div>
+      <div class="kpi-label">ศูนย์มีอาคาร/การเรียน</div>
+      <div class="kpi-value">4</div>
+      <div class="kpi-sub">นานาชาตินับรวมกับพณิชยการ</div>
+    </div>
+    <div class="kpi-card amber">
+      <div class="kpi-icon"><i class="ti ti-building"></i></div>
+      <div class="kpi-label">อาคารรวม</div>
+      <div class="kpi-value">50</div>
+      <div class="kpi-sub">ทุกสถานที่</div>
+    </div>
+    <div class="kpi-card purple">
+      <div class="kpi-icon"><i class="ti ti-trees"></i></div>
+      <div class="kpi-label">ที่ดินเปล่า</div>
+      <div class="kpi-value">3</div>
+      <div class="kpi-sub">จอมทอง · ลาดบัวหลวง 2 แห่ง</div>
+    </div>
+    <div class="kpi-card coral">
+      <div class="kpi-icon"><i class="ti ti-ruler-2"></i></div>
+      <div class="kpi-label">พื้นที่ดินรวม</div>
+      <div class="kpi-value">~202</div>
+      <div class="kpi-sub">ไร่ (ทุกสถานที่)</div>
+    </div>
+  </div>
+
+  <div class="charts-grid">
+    <div class="chart-card">
+      <div class="chart-title">จำนวนอาคารแต่ละสถานที่</div>
+      <div class="chart-sub">เรียงตามจำนวนอาคาร</div>
+      <div class="chart-wrap">
+        <canvas id="barBldg" role="img" aria-label="แผนภูมิแท่งจำนวนอาคาร">พระนครเหนือ 20, พณิชยการ 15, เทเวศร์ 9, โชติเวช 5, นานาชาติ 1</canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">ขนาดพื้นที่แต่ละสถานที่</div>
+      <div class="chart-sub">หน่วย: ไร่ (โดยประมาณ)</div>
+      <div class="chart-wrap">
+        <canvas id="barArea" role="img" aria-label="แผนภูมิแท่งแนวนอนขนาดพื้นที่"></canvas>
+      </div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">สัดส่วนประเภทสถานที่</div>
+      <div class="chart-sub">มีอาคาร vs ที่ดินเปล่า</div>
+      <div class="chart-wrap">
+        <canvas id="donutType" role="img" aria-label="สัดส่วนสถานที่มีอาคาร 4 ศูนย์ ที่ดินเปล่า 3 แห่ง">มีอาคาร 4, ที่ดินเปล่า 3</canvas>
+      </div>
+      <div class="legend">
+        <span><span class="ldot" style="background:#185FA5"></span>ศูนย์มีอาคาร/การเรียน 4 (57%)</span>
+        <span><span class="ldot" style="background:#BA7517"></span>ที่ดินเปล่า 3 (43%)</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="map-card">
+    <div class="map-header">
+      <div class="map-title"><i class="ti ti-map"></i> แผนที่ตำแหน่งที่ตั้ง (OpenStreetMap)</div>
+      <div class="map-legend">
+        <span><span class="ml-dot" style="background:#185FA5"></span>มีอาคาร/การเรียน</span>
+        <span><span class="ml-dot" style="background:#BA7517"></span>ที่ดินเปล่า</span>
+        <span style="font-size:11px;color:var(--color-text-secondary)">กดที่จุดเพื่อดูรายละเอียด</span>
+      </div>
+    </div>
+    <div id="leafletMap"></div>
+  </div>
+
+  <div class="table-card">
+    <div class="table-header">
+      <div class="table-title"><i class="ti ti-table"></i> รายการสถานที่ทั้งหมด</div>
+      <div class="search-wrap">
+        <i class="ti ti-search search-icon"></i>
+        <input type="text" id="searchInput" placeholder="ค้นหาสถานที่..." oninput="filterTable()">
+      </div>
+    </div>
+    <div class="filter-row">
+      <button class="filter-btn active" onclick="setFilter('all',this)">ทั้งหมด (8)</button>
+      <button class="filter-btn" onclick="setFilter('campus',this)">มีอาคาร/การเรียน (4)</button>
+      <button class="filter-btn" onclick="setFilter('land',this)">ที่ดินเปล่า (3)</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th onclick="sortTable(0)">รหัส <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(1)">ชื่อสถานที่ <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(2)">ประเภท <span class="sort-icon">↕</span></th>
+            <th>พิกัด (Lat, Lng)</th>
+            <th onclick="sortTable(4)">พื้นที่ <span class="sort-icon">↕</span></th>
+            <th onclick="sortTable(5)">อาคาร <span class="sort-icon">↕</span></th>
+            <th>Google Maps</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+    <div class="table-footer">
+      <span id="tableFooter">แสดง 8 รายการ</span>
+      <span>ข้อมูลจาก ds_0124 · มทร.พระนคร</span>
+    </div>
+  </div>
+</div>
+
+<div class="page-footer">
+  ข้อมูล: มหาวิทยาลัยเทคโนโลยีราชมงคลพระนคร · กองนโยบายและแผน สำนักงานอธิการบดี · ds_0124
+</div>
+
+<script>
+  document.getElementById('currentDate').textContent =
+    new Date().toLocaleDateString('th-TH', { year:'numeric', month:'long', day:'numeric' });
+
+  const campuses = [
+    {id:1,nameTh:'ศูนย์เทเวศร์',nameEn:'Thewet Campus',lat:13.7707,lng:100.5012,area:'9 ไร่ 68 ตร.ว.',areaRai:9.17,bldg:9,type:'campus'},
+    {id:2,nameTh:'ศูนย์พณิชยการพระนคร',nameEn:'Bangkok Commercial Campus',lat:13.7621,lng:100.5134,area:'19 ไร่ 177 ตร.ว.',areaRai:19.44,bldg:15,type:'campus'},
+    {id:3,nameTh:'ศูนย์พระนครเหนือ',nameEn:'North Bangkok Campus',lat:13.8178,lng:100.5118,area:'20 ไร่ 99 ตร.ว.',areaRai:20.25,bldg:20,type:'campus'},
+    {id:4,nameTh:'ศูนย์โชติเวช',nameEn:'Chotiwet Campus',lat:13.7720,lng:100.5001,area:'3 ไร่ 394 ตร.ว.',areaRai:3.99,bldg:5,type:'campus'},
+    {id:5,nameTh:'ที่ดินจอมทอง',nameEn:'Chom Thong Land',lat:13.6868,lng:100.4607,area:'29 ไร่ 64.4 ตร.ว.',areaRai:29.16,bldg:0,type:'land'},
+    {id:6,nameTh:'ที่ดินลาดบัวหลวง',nameEn:'Lat Bua Luang Land',lat:14.1717,lng:100.3310,area:'80 ไร่ 3 งาน 46.9 ตร.ว.',areaRai:80.76,bldg:0,type:'land'},
+    {id:7,nameTh:'ที่ดินลาดบัวหลวงบริจาค',nameEn:'Lat Bua Luang Donated Land',lat:14.1636,lng:100.3307,area:'39 ไร่ 3.3 ตร.ว.',areaRai:39.01,bldg:0,type:'land'},
+    {id:8,nameTh:'ที่ดินวิทยาลัยนานาชาติ',nameEn:'International College',lat:13.7617,lng:100.5150,area:'100 ตร.ว.',areaRai:0.06,bldg:1,type:'campus'}
+  ];
+
+  let sortCol=-1, sortAsc=true, filterType='all', curData=[...campuses];
+
+  function getBadge(t) {
+    return t==='campus'
+      ? '<span class="badge badge-campus">มีอาคาร/การเรียน</span>'
+      : '<span class="badge badge-land">ที่ดินเปล่า</span>';
+  }
+
+  function renderTable(data) {
+    document.getElementById('tableBody').innerHTML = data.map(d => `
+      <tr>
+        <td class="mono">${d.id}</td>
+        <td>
+          <div style="font-weight:500">${d.nameTh}</div>
+          <div style="font-size:11px;color:var(--color-text-secondary)">${d.nameEn}</div>
+        </td>
+        <td>${getBadge(d.type)}</td>
+        <td class="mono">${d.lat.toFixed(4)}, ${d.lng.toFixed(4)}</td>
+        <td style="font-size:12px">${d.area}</td>
+        <td style="text-align:center;font-weight:500">${d.bldg}</td>
+        <td>
+          <a href="https://www.google.com/maps?q=${d.lat},${d.lng}" target="_blank"
+             style="color:var(--color-primary);font-size:12px;text-decoration:none;display:flex;align-items:center;gap:4px">
+            <i class="ti ti-map-pin" style="font-size:14px"></i>เปิดแผนที่
+          </a>
+        </td>
+      </tr>`).join('');
+    document.getElementById('tableFooter').textContent = `แสดง ${data.length} จาก 8 รายการ`;
+  }
+
+  function getFiltered() {
+    const q = (document.getElementById('searchInput').value || '').toLowerCase();
+    return campuses.filter(d => {
+      const mf = filterType==='all' || (filterType==='campus'&&d.type==='campus') || (filterType==='land'&&d.type==='land');
+      const ms = !q || d.nameTh.toLowerCase().includes(q) || d.nameEn.toLowerCase().includes(q);
+      return mf && ms;
+    });
+  }
+
+  function filterTable() { curData=getFiltered(); if(sortCol>=0) doSort(); else renderTable(curData); }
+
+  function setFilter(type, btn) {
+    filterType = type;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    filterTable();
+  }
+
+  function sortTable(col) {
+    document.querySelectorAll('thead th').forEach((th,i) => {
+      th.classList.toggle('active', i===col);
+      const s = th.querySelector('.sort-icon');
+      if(s) s.textContent = i===col ? (sortAsc?'↑':'↓') : '↕';
+    });
+    if(sortCol===col) sortAsc=!sortAsc; else { sortCol=col; sortAsc=true; }
+    doSort();
+  }
+
+  function doSort() {
+    const keys=['id','nameTh','type','','areaRai','bldg'];
+    curData.sort((a,b) => {
+      const av=a[keys[sortCol]], bv=b[keys[sortCol]];
+      const c = typeof av==='number' ? av-bv : String(av).localeCompare(String(bv),'th');
+      return sortAsc ? c : -c;
+    });
+    renderTable(curData);
+  }
+
+  renderTable(campuses);
+
+  new Chart(document.getElementById('barBldg'), {
+    type: 'bar',
+    data: {
+      labels: ['พระนครเหนือ','พณิชยการ','เทเวศร์','โชติเวช','นานาชาติ'],
+      datasets: [{ data:[20,15,9,5,1], backgroundColor:['#185FA5','#378ADD','#85B7EB','#0F6E56','#7F77DD'], borderRadius:5, borderSkipped:false }]
+    },
+    options: { responsive:true, maintainAspectRatio:false,
+      plugins: { legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.raw} อาคาร`}} },
+      scales: { x:{grid:{display:false},ticks:{font:{size:11,family:'Sarabun'},color:'#888780'}},
+        y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{stepSize:5,font:{size:11},color:'#888780'}} } }
+  });
+
+  const sorted = [...campuses].filter(c=>c.areaRai>0).sort((a,b)=>b.areaRai-a.areaRai);
+  new Chart(document.getElementById('barArea'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(c => c.nameTh.replace('ที่ดิน','').replace('ศูนย์','')),
+      datasets: [{ data: sorted.map(c=>parseFloat(c.areaRai.toFixed(2))),
+        backgroundColor: sorted.map(c=>c.type==='campus'?'#185FA5':'#BA7517'),
+        borderRadius:5, borderSkipped:false }]
+    },
+    options: { responsive:true, maintainAspectRatio:false, indexAxis:'y',
+      plugins: { legend:{display:false}, tooltip:{callbacks:{
+        title: ctx => sorted[ctx[0].dataIndex].nameTh,
+        label: ctx => ` ${ctx.raw} ไร่`
+      }}},
+      scales: { x:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'},ticks:{font:{size:10},color:'#888780'}},
+        y:{grid:{display:false},ticks:{font:{size:10,family:'Sarabun'},color:'#888780'}} } }
+  });
+
+  new Chart(document.getElementById('donutType'), {
+    type: 'doughnut',
+    data: { labels:['ศูนย์มีอาคาร/การเรียน','ที่ดินเปล่า'],
+      datasets:[{ data:[4,3], backgroundColor:['#185FA5','#BA7517'], borderWidth:0, hoverOffset:6 }] },
+    options: { responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${ctx.raw} แห่ง`}} } }
+  });
+
+  const map = L.map('leafletMap').setView([13.9, 100.45], 10);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+    maxZoom: 19
+  }).addTo(map);
+
+  campuses.forEach(c => {
+    const color = c.type==='campus' ? '#185FA5' : '#BA7517';
+    const icon = L.divIcon({
+      className: '',
+      html: `<div style="width:16px;height:16px;border-radius:50%;background:${color};border:2.5px solid white;box-shadow:0 1px 5px rgba(0,0,0,0.35)"></div>`,
+      iconSize: [16,16], iconAnchor: [8,8]
+    });
+    const typeLabel = c.type==='campus' ? 'มีอาคาร/การเรียน' : 'ที่ดินเปล่า';
+    const popup = `
+      <div class="popup-name">${c.nameTh}</div>
+      <div class="popup-row"><span class="popup-lbl">ประเภท</span><span class="popup-val">${typeLabel}</span></div>
+      <div class="popup-row"><span class="popup-lbl">Latitude</span><span class="popup-val">${c.lat.toFixed(4)}</span></div>
+      <div class="popup-row"><span class="popup-lbl">Longitude</span><span class="popup-val">${c.lng.toFixed(4)}</span></div>
+      <div class="popup-row"><span class="popup-lbl">พื้นที่</span><span class="popup-val">${c.area}</span></div>
+      <div class="popup-row"><span class="popup-lbl">อาคาร</span><span class="popup-val">${c.bldg} หลัง</span></div>
+      <a class="popup-link" href="https://www.google.com/maps?q=${c.lat},${c.lng}" target="_blank">เปิด Google Maps ↗</a>`;
+    L.marker([c.lat, c.lng], {icon}).addTo(map).bindPopup(popup, {maxWidth:220});
+  });
+</script>
+</body>
+</html>
